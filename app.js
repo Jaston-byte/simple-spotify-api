@@ -4,12 +4,18 @@ const cookieParser = require("cookie-parser");
 const cors = require("cors");
 const winston = require("winston");
 const dotenv = require("dotenv");
+// You need to dotenv.config() to actually import the environmental vars
 const result = dotenv.config();
-const PORT = 3000;
+const PORT = 3500;
 
 const logger = winston.createLogger({
   level: "info",
-  format: winston.format.json(),
+  format: winston.format.combine(
+    winston.format.timestamp({
+      format: "YYYY-MM-DD HH:mm:ss",
+    }),
+    winston.format.json()
+  ),
   defaultMeta: { service: "user-service" },
   transports: [new winston.transports.File({ filename: "application.log" })],
 });
@@ -46,7 +52,7 @@ app.get("/login", function (req, res) {
   logger.info("redirect_uri: " + redirect_uri);
   const stateKey = "spotify_auth_state";
   const state = generateRandomString(16); // optional
-  const scope = "user-read-currently-playing"; // optional
+  const scope = "user-read-currently-playing user-library-read"; // optional
   // const show_dialog = "" // optional
 
   // saving the state id as a cookie, for later usage
@@ -60,16 +66,15 @@ app.get("/login", function (req, res) {
     state: state,
   };
 
-  var savedString =
+  const savedString =
     "https://accounts.spotify.com/authorize?" +
     querystring.stringify(reqAuthString);
 
-  logger.info("Saved url string: " + savedString); // Log the savedString using Winston
+  res.on("finish", () => {
+    logger.info("Saved url string: " + savedString);
+  });
 
-  res.redirect(
-    "https://accounts.spotify.com/authorize?" +
-      querystring.stringify(reqAuthString)
-  );
+  res.redirect(savedString);
 });
 
 app.use((err, req, res, next) => {
